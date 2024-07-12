@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="ef4fbcbf-f465-424e-8034-92a2144ff48c" >
+		<http:listener-connection host="${http.host}" port="${http.port}" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="14877a29-7369-47de-afbc-ed7da9f205a8" >
+		<db:my-sql-connection host="${database.host}" port="${database.port}" user="${database.user}" password="${database.password}" database="api" />
+	</db:config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="3499365b-ad85-4a3f-9c7a-d23f2894f6f8" >
+		<salesforce:basic-connection username="${salesforce.username}" password="${salesforce.password}" securityToken="u83dfkGzhQFBzPWGo3k9wLw4y" url="https://login.salesforce.com/services/Soap/u/56.0" />
+	</salesforce:sfdc-config>
+	<flow name="etl2Flow" doc:id="8fd9966a-c3b8-4cd8-9050-871e660ab0c0" >
+		<http:listener doc:name="Listener" doc:id="698d3d42-d7ce-41e8-9308-4c722697131e" config-ref="HTTP_Listener_config" path="${http.path}"/>
+		<logger level="INFO" doc:name="Logger" doc:id="907e1cdc-5fbe-44cd-9f2d-437513fa02af" message="${logger.message1}"/>
+		<ee:transform doc:name="Transform Message" doc:id="99a083dd-8ce5-4011-b41d-79366e46cc89" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="4103cf51-7922-48e4-a0cf-8cd812f7ce52" >
+			<route>
+				<foreach doc:name="For Each" doc:id="95a9927d-a52c-4db2-96f1-1f1ae855e273" collection="payload">
+					<db:insert doc:name="Insert" doc:id="844e1355-eb63-48bd-844d-a773e9be8c43" config-ref="Database_Config">
+			<db:sql><![CDATA[INSERT INTO salesforce (Name, AccountNumber, AccountSource, NumberOfEmployees, Phone)
+VALUES (:Name, :AccountNumber, :AccountSource, :NumberOfEmployees, :Phone);]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	"Name": payload.Name,
+	"AccountNumber": payload.AccountNumber,
+	"AccountSource": payload.AccountSource,
+	"NumberOfEmployees": payload.NumberOfEmployees,
+	"Phone": payload.Phone
+}]]]></db:input-parameters>
+		</db:insert>
+				</foreach>
+			</route>
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="15940736-2c1b-4fbe-8136-df00fbbd3196" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<salesforce:create doc:name="Create" doc:id="f55bf40f-4942-48f8-818f-4df9ea0f8327" config-ref="Salesforce_Config" type="Account"/>
+				<ee:transform doc:name="Transform Message" doc:id="a92a8510-9c10-41cf-b2a7-d9930cb3088d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<logger level="INFO" doc:name="Logger" doc:id="3037f750-17c9-4103-b931-eeaff4540bb4" message="${logger.message2}"/>
+	</flow>
+</mule>

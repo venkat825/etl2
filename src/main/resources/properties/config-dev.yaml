@@ -1,0 +1,19 @@
+http:
+  host: "localhost"
+  port: "8081"
+  path: "/etl"
+  
+logger:
+  message1: "data before inserting"
+  message2: "data after inserting"  
+ 
+database:
+  host: "localhost"
+  port: "3306"
+  user: "root"
+  password: "Sriram@2021"   
+  
+salesforce:
+  username: "sriram21@gmail.com"
+  password: "Sriram@2021"
+  
